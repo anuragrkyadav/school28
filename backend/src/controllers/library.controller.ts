@@ -643,6 +643,32 @@ export class LibraryController {
     }
   }
 
+  static async getStudentCirculations(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const schoolId = schoolObjectId(req);
+      const studentId = typeof req.params.studentId === 'string' ? req.params.studentId : '';
+      if (!studentId) {
+        res.status(400).json({ success: false, message: 'studentId is required' });
+        return;
+      }
+
+      const studentObjectId = toObjectId(studentId, 'studentId');
+      const circs = await BookCirculation.find({ schoolId, studentId: studentObjectId }).sort({ createdAt: -1 });
+
+      const formatted = circs.map((circulation) => {
+        const overdue = circulation.status !== 'returned' && circulation.dueDate.getTime() < Date.now();
+        return {
+          ...formatCirculation(circulation),
+          status: overdue ? 'overdue' : circulation.status,
+        };
+      });
+
+      sendResponse(res, 200, 'Student circulations retrieved', formatted);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getReservations(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const schoolId = schoolObjectId(req);
